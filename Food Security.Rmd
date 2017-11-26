@@ -1,0 +1,451 @@
+---
+title: "Food Security Indicators"
+author: "Nitish Ghosal"
+date: "November 4, 2017"
+output: html_document
+
+---
+# Food Security Indicators Exploratory Analysis {.tabset}
+
+## 1.Synopsis
+
+<iframe width="900" height="450" src="http://www.youtube.com/embed/8vnYwvYxO6g?rel=0" frameborder="0" allowfullscreen></iframe>
+
+
+**"In a world of plenty, no one, not a single person, should go hungry. But almost 1 billion still do not have enough to eat."** - 
+*Ban Ki-moon, United Nations Secretary-General
+
+With the world's population expected to grow from 7 billion to 9 billion, a growth of 30%, in the next four decades, the demand on our food and agriculture systems will be greater than ever.Food security is one of the [17 sustainable development goals(SDG)](https://sustainabledevelopment.un.org/sdgs)  in the [2030 Agenda for Sustainable Development](https://sustainabledevelopment.un.org/) .The international community is committed to ending hunger and all forms of malnutrition worldwide by 2030 spearheaded by the United Nations through a deliberative process involving its 193 Member States, as well as global civil society and the private sector.
+
+
+###1.1.Problem Statement 
+
+The goal of this project is to perform exploratory data analysis of the data hosted on the [**FAOSTATS**](http://www.fao.org/faostat/en/#home) portal and identify the critical factors that impact agriculture and food security around the world as well as identify the countries where the food security problem is most severe so that adequate resources could be diverted in that region in order to improve the situation.
+
+###1.2.Proposed Methology
+
+I will perform exploratory data analysis and data visualization of the raw data after data import and cleaning.
+I want to create a dashboard using shinyapp where input could be year,country,indicator or a combination of them and output will be fetched in the form of visualizations or tables with the relevant data.
+
+I will also use cluster analysis to group countries facing similar problems.
+
+
+###1.3.Solution Overview
+For any given key indicator, we will be able to see the top performing and worst perfroming countries in that category.
+
+The dataset contains data for 245 countries/regions across 23 key indicator categories for the period of 1999-2016.
+
+My work will provide a tool to access the data in a quick,concise,insightful and easy to understand format
+
+
+## 2.Packages Required
+
+Following packages were used:
+
+* **tibble** : Used to store data as a tibble, and makes it much easier to handle and manipulate data
+
+* **dplyr**  : Used for data manipulation
+
+* **ggplot2**: Used to plot charts
+
+* **tidyverse** : Allows for data manipulation and works in harmony with other packages as well
+
+* **stringr** : String operations
+
+* **magrittr**: pipe operator in r programming
+
+* **DT** : Used to display the data on the screen in a scrollable format
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+library(tibble)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyverse)
+library(magrittr)
+library(DT)
+library(plotly)
+library(ggrepel)
+
+#Package "tidyverse" includes: tidyr, dplyr, ggplot2, readr, readxl, magrittr
+```
+
+## 3.Data Preparation{.tabset}
+
+### 3.1.Data Source
+The data is compiled by FAO and hosted on FAOSTAT portal.Food security indicators dataset provides an overview of key indicators by country over the period 1999-2016. The data is available [here](http://www.fao.org/faostat/en/#data/FS)
+
+### 3.2.Data Description
+The data dictionary can be found [here](http://www.fao.org/faostat/en/#data/FS/metadata)
+
+The original dataset contains following variables:
+
+*  Area Code  
+*  Area     
+*  Item Code   
+*  Item 
+*  Element Code  
+*  Element  
+*  Year Code   
+*  Year     
+*  Unit    
+*  Value  
+*  Flag  
+
+There are a total of 248 distinct Area Code values, 248 distinct Area values, 23 distinct Item Code values, 23 distinct Item values, 9 distinct Element Code values, 9 distinct Element values, 7 distinct Flag values, 9 distinct Unit values.
+
+Year Code and Year have two different formats - 3 year range values and distinct values.
+
+
+### 3.3.Data  Import
+
+The raw dataset contains 87928 rows and 11 columns.Since the data was taken from the FAOSTAT website and there is no direct url to fetch the dataset , I am sourcing the data from my github library.
+
+Data Import Code:
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+url <- "https://raw.githubusercontent.com/nitishghosal/Food-Security-Indicators/master/Food_Security_Data_E_All_Data.csv"
+
+raw_data <- as_data_frame(read.csv(url, stringsAsFactors = FALSE))
+
+class(raw_data)
+
+colnames(raw_data)
+
+dim(raw_data)
+```
+Preview (top 50 rows) of original dataset:
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+library(DT)
+datatable(head(raw_data,50))
+```
+
+
+### 3.4.Data Cleaning
+
+
+In this step, we clean the data for our analysis . 
+
+Identify missing values or blank strings in the dataset and replace blank strings with NAs.. We do not remove rows having missing values for a particular variable from our dataset beacuse removal might affect the analysis using other variables. For our analysis, we limit our data to internationally accepted sources which is identified in our dataset by the flags F and X.
+
+* F = FAO estimate  
+* X = International reliable sources (USDA, WTO, World Bank, IMF, UNICEF, UNSD)
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+## define a helper function
+empty_as_na <- function(x){
+  if ("factor" %in% class(x)) x <- as.character(x) ## since ifelse wont work with factors
+  ifelse(as.character(x) != "", x, NA)
+}
+
+## transform all columns
+clean_data <- raw_data %>% mutate_each(funs(empty_as_na))
+
+##Create Tidy data for analysis
+
+clean_data <- raw_data %>% filter(Flag == "F" | Flag == "X") %>% separate(Year,into = c("Year_From","Year_To"))
+```
+
+
+
+Some of the variables have to be changed into some other datatype, e.g.,Area.Code was changed to character type, Item.Code to factor type and Element.Code to factor.
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+clean_data$Area.Code <- as.character(clean_data$Area.Code)
+clean_data$Item.Code <- factor(clean_data$Item.Code)
+clean_data$Element.Code <- factor(clean_data$Element.Code)
+clean_data$Year_From <-  as.numeric(clean_data$Year_From)
+clean_data$Year_To <- as.numeric(clean_data$Year_To)
+
+```
+
+
+
+
+We create tidy datasets for some of our key indicators.
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+
+#Create tidy data for GDP
+
+GDP_tidy <- clean_data %>% filter(Item.Code == 22013 & Area.Code == 5000)
+
+#Create tidy data for number of severely food insecure people(sfip)
+sfip_tidy <- clean_data %>% filter(Item.Code == 21007)
+
+
+```
+
+
+### 3.5.Data Preview
+
+Preview (top 50 rows) of the tidy datasets:
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+library(DT)
+datatable(head(GDP_tidy,50))
+
+datatable(head(sfip_tidy,50))
+
+```
+
+### 3.6.Data Summary
+
+Our cleaned dataset consists of 56735 rows of data for 11 variables which we will be using in our analysis.
+
+The variable Area.Code is a categorical variable which can take 248 distinct values. e.g. 
+
+* 2	 -   Afghanistan 
+* 5100-	Africa 
+* 3 	- Albania
+* 4 	- Algeria
+
+
+
+The variable Area represents Country/Region/Continent.It has 248 distinct values.e.g. 
+* Afghanistan    
+* Africa      
+* Botswana     
+* Central Asia        
+* Eastern Europe        
+
+
+
+The variable Item.Code and Item represent the key indicator being measured. They have 23 distinct values.e.g.
+
+Item Code	|                 Item
+----------|----------------------------------------------------
+21020	| Access to improved sanitation facilities (%)
+21019	| Access to improved water sources (%)
+21010	| Average dietary energy supply adequacy (%) (3-year average)
+21013	| Average protein supply (g/capita/day) (3-year average)
+21014	| Average supply of protein of animal origin (g/capita/day) (3-year average)
+21011	| Average value of food production (constant I$ per person) (3-year average)
+21035	| Cereal import dependency ratio (%) (3-year average)
+21023	| Depth of the food deficit (kcal/capita/day) (3-year average)
+22013	| Gross domestic product per capita, PPP (constant 2011 international $)
+21001	| Number of people undernourished (millions) (3-year average)
+21007	| Number of severely food insecure people
+21030	| Per capita food production variability (I$ per person constant 2004-06)
+21031	| Per capita food supply variability (kcal/capita/day)
+21034	| Percentage of arable land equipped for irrigation (%) (3-year average)
+21026	| Percentage of children under 5 years of age affected by wasting (%)
+21041	| Percentage of children under 5 years of age who are overweight
+21025	| Percentage of children under 5 years of age who are stunted (%)
+21032	| Political stability and absence of violence/terrorism (index)
+21040	| Prevalence of severe food insecurity in the total population
+21004	| Prevalence of undernourishment (%) (3-year average)
+21016	| Rail-lines density (per 100 square km of land area)
+21012	| Share of dietary energy supply derived from cereals, roots and tubers (%) (3-year average)
+21033	| Value of food imports over total merchandise exports (%) (3-year average)
+
+
+
+The variables Element.Code, Element and Unit have 9 distinct values which represent the following 
+
+Element Code|	Element|	Unit
+------------|--------|-----
+6121	| Value|	%
+6122	|Value| I$ per person
+6123	|Value|	g/capita/day
+6124	|Value|	per 100 square km of land area
+6125	|Value|	index
+6126	|Value|	I$
+6127	|Value|	1000 I$
+6128	|Value|	kcal/capita/day
+6132	|Value|	millions
+
+
+Year.Code & Year represent the year or year range for which the Item.Code(key indicator) is being measured.
+Year and Year.Code can take distinct values as well as year ranges. e.g. 1999,2001, 1999-2001
+
+
+Flag represents the data source from which data was sourced by FAO.
+
+Flag	|    Flags
+------|-------------------------------------
+F|	FAO estimate
+X	|International reliable sources (USDA, WTO, World Bank, IMF, UNICEF, UNSD)
+<0.1	|Less than 100 000 people undernourished
+NA	|Not applicable
+NR	|Not reported
+NS	|Not statistically significant
+<2.5	|Proportion of undernourished less than 2.5 percent
+
+
+
+## 4.Exploratory Data Analysis{.tabset}
+
+I propose to create a interactive dashboard similar to [this](https://bradleyboehmke.shinyapps.io/LPI_Rankings/)
+either as a flexdashboard or shinyapp in which input filters would be a combination of
+
+* Area
+
+* Item
+
+* Year  
+ 
+and based on these inputs, we will get tabular data(which could be downloaded) as well as interactive geographical visulization . 
+
+
+I will also perform visualation using k-means clustering for regions and special groups in Area such as World,Africa,Least Developed Countries,Small Landlocked Countries.
+
+
+Through my exploratory data analysis, I want to uncover answers to following questions-
+
+*  The state of hunger in thw world- the number of people undernourished in the world.
+
+*  State of Malnutrition in the major regions in the world. 
+
+*  Understand if there is any relationship between hunger, malnutrition and conflict.
+
+
+
+In order to accomplish the above proposals, I need to learn how to build dashboards on shiny and use flexboard package to create dashboards in R Markdown.
+
+
+
+There is more than enough food produced in the world to feed everyone, yet 815 million people go hungry. As reflected in Sustainable Development Goal 2 (SDG 2), one of the greatest challenges the world faces is how to ensure that a growing global population - projected to rise to around 10 billion by 2050 - has enough food to meet their nutritional needs. To feed another two billion people in 2050, food production will need to increase by 50 percent globally. Food security is a complex condition requiring a holistic approach to all forms of malnutrition, the productivity and incomes of small-scale food producers, resilience of food production systems and the sustainable use of biodiversity and genetic resources.
+
+
+### 4.1. GDP
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+#GDP trend for world from 2000-2016
+GDP_tidy <- clean_data %>% filter(Item.Code == 22013)
+glimpse(GDP_tidy)
+
+p1 <- GDP_tidy %>%
+  filter(Area.Code == 5000)%>%
+  plot_ly(x = ~Year_From, y = ~Value, type = 'scatter', mode = 'lines+markers',
+          hoverinfo = 'text',
+          text = ~paste('GDP Value: ', Value,
+                        '</br></br> Year: ', Year_From)) %>%
+  layout(title = "Figure 1 : World GDP value changes over timer",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "GDP Vaue in USD"))
+p1
+
+```
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+# plotly map of 2016 GDP by Country
+df <- GDP_tidy %>%
+  filter(Area.Code != 5000, Year_From == 2016) %>%
+  mutate(region = tolower(Area),
+         GDP = (Value/1000),
+         Code = Area.Code)
+
+g <- list(
+  scope = 'world',
+  projection = list(type = 'albers world'),
+  lakecolor = toRGB('white')
+)
+
+plot_geo(df, locationmode = 'country names') %>%
+  add_trace(
+    z = ~GDP, text = ~Area,
+    locations = ~Area, colors = "Reds"
+  ) %>%
+  colorbar(title = 'GDP Value', len = .4, thickness = 20, xpad = 0, ypad = 0, x = 1.05, ticksuffix = 'k') %>%
+  layout(
+    title = paste(unique(df$Area), 'GDP Rate by Country<br>(Hover for breakdown)'),
+    geo = g
+  )  
+  
+
+```
+
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+#Find top and bottom 5 countries by GDP
+GDP1K <- GDP_tidy %>%
+  mutate(GDP=Value/1000)%>%
+  filter(Area.Code != 5000)
+
+top5 <- GDP1K %>%
+  arrange(desc(GDP)) %>%
+  filter(Year_From == 2016) %>%
+  slice(1:5)
+
+bottom5 <- GDP1K %>%
+  arrange(GDP) %>%
+  filter(Year_From == 2016) %>%
+  slice(1:5)
+
+
+avg <- GDP1K %>%
+  group_by(Year_From) %>%
+  summarise(Avg_mn = mean(GDP),
+            Avg_md = median(GDP)) %>%
+  mutate(Avg = "Average")
+
+p2<-ggplot(GDP1K, aes(Year_From, GDP, group = Area)) +
+  geom_line(alpha = .1) +
+  geom_line(data = filter(GDP1K,Area %in% top5$Area),
+            aes(Year_From, GDP, group = Area), color = "dodgerblue") +
+  geom_line(data = filter(GDP1K, Area%in% bottom5$Area),
+            aes(Year_From, GDP, group = Area), color = "red") +
+  geom_line(data = avg, aes(Year_From, Avg_mn, group = 1), linetype = "dashed") +
+  annotate("text", x = 2016.25, y = .071, label = "Average", hjust = 0, size = 3) +
+  geom_text_repel(data = top5, aes(label = Area), nudge_x = .5, size = 3) +
+  geom_point(data = top5, aes(Year_From, GDP), color = "dodgerblue") +
+  geom_text_repel(data = bottom5, aes(label = Area), nudge_x = 0.5, size = 3) +
+  geom_point(data = bottom5, aes(Year_From, GDP), color = "red") +
+  scale_x_continuous(NULL, limits = c(2000, 2016.25), breaks = seq(2000, 2016, by = 2)) +
+  scale_y_continuous(NULL, limits = c(0,150), breaks = seq(0, 150, by = 15), labels = scales::dollar_format(prefix = "$", suffix = "K")) +
+  ggtitle("Figure 3: GDP changes over time",
+          subtitle = "Temporal assessment of Country-wise GDP change (2000-2016)") +
+  xlab("Year")+
+  ylab("GDP Value in dollars")+
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        text = element_text(family = "Georgia"),
+        plot.title = element_text(size = 28, margin = margin(b = 10)),
+        plot.subtitle = element_text(size = 12, color = "darkslategrey", margin = margin(b = 25)))
+
+ggplotly(p2)
+  
+
+```
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+#State of Hunger in the world
+
+Undernourished <- clean_data %>% filter(Item.Code == 21001 & Area.Code == 5000)
+a <- Undernourished%>%
+  plot_ly(x = ~Year_To, y = ~Value,type = 'scatter', mode = 'lines+markers',
+          hoverinfo = 'text',
+          text = ~paste('Number of undernourished people(Millions): ', Value,
+                        '</br></br> Year: ', Year_To))%>%
+  layout(title = "Figure 1 :Number of undernourished people in the world. SOURCE: FAO.",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "Number of people undernourished (in Millions)"))
+
+
+PU <- clean_data %>% filter(Item.Code == 21004 & Area.Code == 5000)
+
+
+
+b <- PU%>%
+  plot_ly(x = ~Year_To, y = ~Value,type = 'scatter', mode = 'lines+markers',
+          hoverinfo = 'text',
+          text = ~paste('Prevalence of undernourishment (%) : ', Value,
+                        '</br></br> Year: ', Year_To))%>%
+  layout(title = "Figure 2 :Prevalence of undernourishment in the world. SOURCE: FAO.",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "Prevalence of undernourishment (%)"))
+
+
+p3 <- subplot(a, b, titleX = TRUE, titleY = TRUE) %>%
+  layout(showlegend = FALSE)
+p3
+
+
+```
