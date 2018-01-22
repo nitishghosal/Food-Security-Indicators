@@ -1,11 +1,17 @@
 ---
-title: "Food Security Indicators"
+title: "STATE OF FOOD SECURITY AND NUTRITION IN THE WORLD"
 author: "Nitish Ghosal"
 date: "November 4, 2017"
 output: html_document
+fig_width : 6
+fig_height : 4
+fig.asp : 0.618
+fig.align : "center"
+out.width : "100%"
+out.height : "100%"
 
 ---
-# Food Security Indicators Exploratory Analysis {.tabset}
+# How close are we to #ZeroHunger? {.tabset}
 
 ## 1.Synopsis
 
@@ -24,49 +30,49 @@ The goal of this project is to perform exploratory data analysis of the data hos
 
 ###1.2.Proposed Methology
 
-I will perform exploratory data analysis and data visualization of the raw data after data import and cleaning.
-I want to create a dashboard using shinyapp where input could be year,country,indicator or a combination of them and output will be fetched in the form of visualizations or tables with the relevant data.
-
-I will also use cluster analysis to group countries facing similar problems.
-
+Exploratory data analysis was  performed for the dataset after data scraping,cleaning and normalization.
+Data was transformed into smaller tidy datasets which were used to find trends for specific indicators.The
+trends and insights are presented in the form of intutive,interactive and easy to understand visualizations.
 
 ###1.3.Solution Overview
-For any given key indicator, we will be able to see the top performing and worst perfroming countries in that category.
+
+This project is aimed at providing a deeper understanding on the various factors that impact hunger and
+food secuirty and tries to provide an integrated, concise and easy to understand report on the status of
+food security in the world.
 
 The dataset contains data for 245 countries/regions across 23 key indicator categories for the period of 1999-2016.
 
-My work will provide a tool to access the data in a quick,concise,insightful and easy to understand format
+Through the exploratory data analysis performed, it is also explored whether the UN will be able to 
+reach its goal of ending world hunger by 2030.
 
 
 ## 2.Packages Required
 
 Following packages were used:
 
-* **tibble** : Used to store data as a tibble, and makes it much easier to handle and manipulate data
+* **ggrepel**  : provides geoms for ggplot2 to repel overlapping text labels
 
-* **dplyr**  : Used for data manipulation
-
-* **ggplot2**: Used to plot charts
+* **plotly**: Used to plot interactive publication quality charts
 
 * **tidyverse** : Allows for data manipulation and works in harmony with other packages as well
 
 * **stringr** : String operations
 
-* **magrittr**: pipe operator in r programming
+* **knitr**:  for dynamic report generation in R
 
 * **DT** : Used to display the data on the screen in a scrollable format
 
+* **highcharter** : R wrapper for highcharts based on html widgets
+
 ```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
 
-library(tibble)
-library(dplyr)
-library(ggplot2)
 library(stringr)
 library(tidyverse)
-library(magrittr)
 library(DT)
 library(plotly)
 library(ggrepel)
+library(knitr)
+library(highcharter)
 
 #Package "tidyverse" includes: tidyr, dplyr, ggplot2, readr, readxl, magrittr
 ```
@@ -105,7 +111,7 @@ The raw dataset contains 87928 rows and 11 columns.Since the data was taken from
 Data Import Code:
 
 ```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
-
+#Import Data 
 url <- "https://raw.githubusercontent.com/nitishghosal/Food-Security-Indicators/master/Food_Security_Data_E_All_Data.csv"
 
 raw_data <- as_data_frame(read.csv(url, stringsAsFactors = FALSE))
@@ -115,10 +121,15 @@ class(raw_data)
 colnames(raw_data)
 
 dim(raw_data)
+
+#Import Country Codes
+url_cc <- "https://raw.githubusercontent.com/nitishghosal/Food-Security-Indicators/master/CountryGroup.csv"
+
+country_grp <- as_data_frame(read.csv(url_cc,stringsAsFactors = FALSE))
 ```
 Preview (top 50 rows) of original dataset:
 ```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
-library(DT)
+#Preview Raw Data
 datatable(head(raw_data,50))
 ```
 
@@ -154,6 +165,7 @@ clean_data <- raw_data %>% filter(Flag == "F" | Flag == "X") %>% separate(Year,i
 Some of the variables have to be changed into some other datatype, e.g.,Area.Code was changed to character type, Item.Code to factor type and Element.Code to factor.
 
 ```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+#Transform columns to correct data type for analysis
 clean_data$Area.Code <- as.character(clean_data$Area.Code)
 clean_data$Item.Code <- factor(clean_data$Item.Code)
 clean_data$Element.Code <- factor(clean_data$Element.Code)
@@ -161,8 +173,6 @@ clean_data$Year_From <-  as.numeric(clean_data$Year_From)
 clean_data$Year_To <- as.numeric(clean_data$Year_To)
 
 ```
-
-
 
 
 We create tidy datasets for some of our key indicators.
@@ -186,7 +196,7 @@ sfip_tidy <- clean_data %>% filter(Item.Code == 21007)
 Preview (top 50 rows) of the tidy datasets:
 
 ```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
-library(DT)
+
 datatable(head(GDP_tidy,50))
 
 datatable(head(sfip_tidy,50))
@@ -280,22 +290,12 @@ NS	|Not statistically significant
 
 ## 4.Exploratory Data Analysis{.tabset}
 
-I propose to create a interactive dashboard similar to [this](https://bradleyboehmke.shinyapps.io/LPI_Rankings/)
-either as a flexdashboard or shinyapp in which input filters would be a combination of
-
-* Area
-
-* Item
-
-* Year  
- 
-and based on these inputs, we will get tabular data(which could be downloaded) as well as interactive geographical visulization . 
+In this section, exploratory data analysis was performed to find some meningful insights from the dataset.
 
 
-I will also perform visualation using k-means clustering for regions and special groups in Area such as World,Africa,Least Developed Countries,Small Landlocked Countries.
+Through my analysis, I uncovered answers to following questions-
 
-
-Through my exploratory data analysis, I want to uncover answers to following questions-
+*  GDP trends in the world from 2000-2016 
 
 *  The state of hunger in thw world- the number of people undernourished in the world.
 
@@ -304,40 +304,132 @@ Through my exploratory data analysis, I want to uncover answers to following que
 *  Understand if there is any relationship between hunger, malnutrition and conflict.
 
 
-
-In order to accomplish the above proposals, I need to learn how to build dashboards on shiny and use flexboard package to create dashboards in R Markdown.
-
+There is more than enough food produced in the world to feed everyone, yet 789 million people go hungry. As reflected in [Sustainable Development Goal](https://sustainabledevelopment.un.org/sdgs), one of the greatest challenges the world faces is how to ensure that a growing global population - projected to rise to around 10 billion by 2050 - has enough food to meet their nutritional needs. To feed another two billion people in 2050, food production will need to increase by 50 percent globally. Food security is a complex condition requiring a holistic approach to all forms of malnutrition, the productivity and incomes of small-scale food producers, resilience of food production systems and the sustainable use of biodiversity and genetic resources.
 
 
-There is more than enough food produced in the world to feed everyone, yet 815 million people go hungry. As reflected in Sustainable Development Goal 2 (SDG 2), one of the greatest challenges the world faces is how to ensure that a growing global population - projected to rise to around 10 billion by 2050 - has enough food to meet their nutritional needs. To feed another two billion people in 2050, food production will need to increase by 50 percent globally. Food security is a complex condition requiring a holistic approach to all forms of malnutrition, the productivity and incomes of small-scale food producers, resilience of food production systems and the sustainable use of biodiversity and genetic resources.
+### 4.1 State of Nutrition 
 
+####State of Nutrition in a snapshot (2016)
 
-### 4.1. GDP
+Below is a table providing the information reflecting the figures for some of the key indicators used to measure the state of hunger anf food security in the world.
 
 ```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
-#GDP trend for world from 2000-2016
-GDP_tidy <- clean_data %>% filter(Item.Code == 22013)
-glimpse(GDP_tidy)
+#State of key food security indicators in the world
+nutrition <- clean_data %>% 
+  filter(Area.Code == 5000,Year_From == 2016 | Year_To == 2016) %>%
+    select(Item,Unit,Value)
 
-p1 <- GDP_tidy %>%
-  filter(Area.Code == 5000)%>%
-  plot_ly(x = ~Year_From, y = ~Value, type = 'scatter', mode = 'lines+markers',
+datatable(nutrition)
+
+```
+
+
+### 4.2 Undernourishment 
+
+From figure 1 below, it can be inferred that after steadily declining for over a decade, global hunger appears to be on the rise, affecting 11 percent of the global population. World hunger is on the rise: the estimated number of undernourished people increased from 777 million in 2015 to 789 million in 2016. Also, the proportion of the world's population that suffers from chronic hunger (prevalence of undernourishment) has remain unchanged from 2015 to 2016 after steadily declining for over a decade.
+
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center',fig.height=8,fig.width=12}
+
+#Prevalence and number of undernourished people in the world
+
+#Tidy data for Undernourished
+Undernourished <- clean_data %>% filter(Item.Code == 21001 & Area.Code == 5000)
+
+#Plotly graph for undernourished
+a <- Undernourished %>%
+  plot_ly(x = ~Year_To, y = ~Value,type = 'scatter', mode = 'lines+markers',
           hoverinfo = 'text',
-          text = ~paste('GDP Value: ', Value,
-                        '</br></br> Year: ', Year_From)) %>%
-  layout(title = "Figure 1 : World GDP value changes over timer",
+          text = ~paste('Number of undernourished people(Millions): ', Value,
+                        '</br></br> Year: ', Year_To)) %>%
+  layout(title = "Figure 1 :Number of undernourished people in the world.SOURCE: FAO.",
          xaxis = list(title = "Year"),
-         yaxis = list(title = "GDP Vaue in USD"))
+         yaxis = list(title = "Number of people undernourished (in Millions)"))
+
+#Tidy data for Prevalence of Undernourishment in the world
+PU <- clean_data %>% filter(Item.Code == 21004 & Area.Code == 5000)
+
+
+#Plotly graph for Prevalence of Undernourishment
+b <- PU %>%
+  plot_ly(x = ~Year_To, y = ~Value,type = 'scatter', mode = 'lines+markers',
+          hoverinfo = 'text',
+          text = ~paste('Prevalence of undernourishment (%) : ', Value,
+                        '</br></br> Year: ', Year_To)) %>%
+  layout(title = "Figure 1 :Prevalence of undernourishment in the World (2000-2016).SOURCE: FAO.",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "Prevalence of undernourishment (%)"))
+
+
+#Combined plot of Prevalence and number of Undernourished people
+p1 <- subplot(a, b, titleX = TRUE, titleY = TRUE) %>%
+  layout(title = "Figure 1: Prevalence and number of undernourished people in the World (2000-2016).<br>Source: FAO",
+    showlegend = FALSE)
+
 p1
 
 ```
 
-```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+
+
+
+The food security problem has affected the African and Asian continents the most. Over 700 million people are affected by hunger in these two continents alone. While the number of undernourished peole is steadily declining
+in Asia , it has been on the rise in Africa.(Refer figure 2)
+
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center',fig.height=8,fig.width=12}
+#Graph for change in number of undernourished people over time for different regions
+p2 <- clean_data %>%
+  filter(Item.Code == 21001 & Area.Code %in% c('5100','5300','5400','5500','5208','5207','5205')) %>%
+  plot_ly(x = ~Year_From, y = ~Value,color = ~Area, type = 'scatter', mode = 'lines+markers',
+          hoverinfo = 'text',
+          text = ~paste('Region: ', Area,
+                        '</br></br> Number of People Undernourished(Millions): ', Value,
+                        '</br> Year: ', Year_From)) %>%
+  layout(title = "Figure 2 : Number of undernourished people in different parts of the World (2000-2016). <br>Source: FAO",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "Number of people undernourished (in Millions)"))
+p2
+
+```
+
+
+
+### 4.3. GDP
+
+GDP of a country is a key indicator of the economic state of it's people and is the single most imortant indicator of a country's growth and development.Below is a tidy dataset in which we filter the data for world and the six continents over the period 2000-2016.From the tidy data obtained , we created a plot to see the GDP trend during the period 2000-2016.
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center',fig.height=8,fig.width=12}
+#GDP trend for world from 2000-2016
+GDP_tidy <- clean_data %>% filter(Item.Code == 22013)
+glimpse(GDP_tidy)
+
+p3 <- GDP_tidy %>%
+  filter(Area.Code %in% c('5000','5100','5300','5400','5500','5207','5203')) %>%
+  plot_ly(x = ~Year_From, y = ~Value,color = ~Area, type = 'scatter', mode = 'lines+markers',
+          hoverinfo = 'text',
+          text = ~paste('Region: ', Area,
+                        '</br></br> GDP Value: ', Value,
+                        '</br> Year: ', Year_From)) %>%
+  layout(title = "Figure 3 : World GDP value changes over time(2000-2016). <br>Souce: FAO.",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "GDP Vaue in USD"))
+p3
+
+```
+
+
+The average GDP of the world has increased by 44 percent during the period 2000-2016 from $10392 to $14961(Refer Figure 3 above). Although the GDP of Asia & Africa has stayed below the world average. GDPs of North America, Europe and Oceania is well above the world average.
+
+
+I made a choropleth map using plotly (Figure 4) to further understand the GDP distribution among the countries.The plot below is made using GDP data for 2016. Asian and african countries have most of the countries with very low average GDP values.
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center',fig.height=8,fig.width=12}
 # plotly map of 2016 GDP by Country
 df <- GDP_tidy %>%
   filter(Area.Code != 5000, Year_From == 2016) %>%
   mutate(region = tolower(Area),
-         GDP = (Value/1000),
+         GDP = Value,
          Code = Area.Code)
 
 g <- list(
@@ -349,11 +441,11 @@ g <- list(
 plot_geo(df, locationmode = 'country names') %>%
   add_trace(
     z = ~GDP, text = ~Area,
-    locations = ~Area, colors = "Reds"
+    locations = ~Area, colors = "Blues"
   ) %>%
-  colorbar(title = 'GDP Value', len = .4, thickness = 20, xpad = 0, ypad = 0, x = 1.05, ticksuffix = 'k') %>%
+  colorbar(title = 'GDP Value', len = .4, thickness = 20, xpad = 0, ypad = 0, x = 1.05, ticksuffix = '$') %>%
   layout(
-    title = paste(unique(df$Area), 'GDP Rate by Country<br>(Hover for breakdown)'),
+    title = 'Figure 4 : GDP Rate by Country<br>(Hover for breakdown)<br>Source:<a href="http://www.fao.org/faostat/en/#data/FS">FAO</a>',
     geo = g
   )  
   
@@ -361,12 +453,12 @@ plot_geo(df, locationmode = 'country names') %>%
 ```
 
 
-```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center',fig.height=8,fig.width=10}
 
 #Find top and bottom 5 countries by GDP
 GDP1K <- GDP_tidy %>%
-  mutate(GDP=Value/1000)%>%
-  filter(Area.Code != 5000)
+  mutate(GDP = Value/1000) %>%
+  filter(!Area.Code %in% country_grp$Country.Group.Code)
 
 top5 <- GDP1K %>%
   arrange(desc(GDP)) %>%
@@ -385,11 +477,36 @@ avg <- GDP1K %>%
             Avg_md = median(GDP)) %>%
   mutate(Avg = "Average")
 
-p2<-ggplot(GDP1K, aes(Year_From, GDP, group = Area)) +
+
+c <- top5 %>%
+  plot_ly(x = ~Area, y = ~Value,color = ~Area, type = 'bar') %>%
+  layout(title = "Figure 3 : Top 5 Countries by GDP",
+         xaxis = list(title = "Country"),
+         yaxis = list(title = "GDP Vaue in USD"))
+
+d <- bottom5 %>%
+  plot_ly(x = ~Area, y = ~Value,color = ~Area, type = 'bar') %>%
+  layout(title = "Figure 5 : Bottom 5 Countries by GDP",
+         xaxis = list(title = "Country"),
+         yaxis = list(title = "GDP Vaue in USD"))
+
+
+p4 <- subplot(c, d, nrows = 2,titleX = TRUE, titleY = TRUE) %>%
+  layout(title = "Figure 5 : Top 5 & Bottom 5 Countries by GDP<br>Source:FAO",
+         showlegend = FALSE,showlegend2 = FALSE)
+p4
+```
+
+
+From figure 5 above, we found out the top 5 and bottom 5 countries by GGP. We could see that there is a huge disparity in GDP among the top and bottom countries. The top countries have average GDPs that is 70-80 times the bottom countries.
+
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center',fig.height=8,fig.width=12}
+p5 <- ggplot(GDP1K, aes(Year_From, GDP, group = Area)) +
   geom_line(alpha = .1) +
   geom_line(data = filter(GDP1K,Area %in% top5$Area),
             aes(Year_From, GDP, group = Area), color = "dodgerblue") +
-  geom_line(data = filter(GDP1K, Area%in% bottom5$Area),
+  geom_line(data = filter(GDP1K, Area %in% bottom5$Area),
             aes(Year_From, GDP, group = Area), color = "red") +
   geom_line(data = avg, aes(Year_From, Avg_mn, group = 1), linetype = "dashed") +
   annotate("text", x = 2016.25, y = .071, label = "Average", hjust = 0, size = 3) +
@@ -399,53 +516,275 @@ p2<-ggplot(GDP1K, aes(Year_From, GDP, group = Area)) +
   geom_point(data = bottom5, aes(Year_From, GDP), color = "red") +
   scale_x_continuous(NULL, limits = c(2000, 2016.25), breaks = seq(2000, 2016, by = 2)) +
   scale_y_continuous(NULL, limits = c(0,150), breaks = seq(0, 150, by = 15), labels = scales::dollar_format(prefix = "$", suffix = "K")) +
-  ggtitle("Figure 3: GDP changes over time",
+  ggtitle("Figure 6: GDP changes over time",
           subtitle = "Temporal assessment of Country-wise GDP change (2000-2016)") +
-  xlab("Year")+
-  ylab("GDP Value in dollars")+
+  xlab("Year") +
+  ylab("GDP Value in dollars") +
   theme_minimal() +
   theme(panel.grid.minor = element_blank(),
         text = element_text(family = "Georgia"),
         plot.title = element_text(size = 28, margin = margin(b = 10)),
         plot.subtitle = element_text(size = 12, color = "darkslategrey", margin = margin(b = 25)))
 
-ggplotly(p2)
+ggplotly(p5)
   
 
 ```
 
-```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
-
-#State of Hunger in the world
-
-Undernourished <- clean_data %>% filter(Item.Code == 21001 & Area.Code == 5000)
-a <- Undernourished%>%
-  plot_ly(x = ~Year_To, y = ~Value,type = 'scatter', mode = 'lines+markers',
-          hoverinfo = 'text',
-          text = ~paste('Number of undernourished people(Millions): ', Value,
-                        '</br></br> Year: ', Year_To))%>%
-  layout(title = "Figure 1 :Number of undernourished people in the world. SOURCE: FAO.",
-         xaxis = list(title = "Year"),
-         yaxis = list(title = "Number of people undernourished (in Millions)"))
+We can observe from figure 6 that the the GDPs of the top five countries have increased at a much faster rate than the world average whereas for the bottom five countries it has remained almost constant.Moreover,GDP of the bottom five countries is well below the world average of $14300.
 
 
-PU <- clean_data %>% filter(Item.Code == 21004 & Area.Code == 5000)
+### 4.4. Political Stability 
+
+#### Hunger,Malnutition & Conflict : a complex relationship
+
+Of the 789 million chronically food-insecure and malnourished people in the world, the vast majority - 489 million -live in countries affected by conflict.
+
+The proportion is even more pronounced for undernourished children. Almost 122 million, or 75 percent, of stunted children under age five live in countries affected by conflict, with the difference in average prevalence between conflict and non-conflict affected countries at nine percentage points
 
 
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center',fig.height=8,fig.width=12}
 
-b <- PU%>%
-  plot_ly(x = ~Year_To, y = ~Value,type = 'scatter', mode = 'lines+markers',
-          hoverinfo = 'text',
-          text = ~paste('Prevalence of undernourishment (%) : ', Value,
-                        '</br></br> Year: ', Year_To))%>%
-  layout(title = "Figure 2 :Prevalence of undernourishment in the world. SOURCE: FAO.",
-         xaxis = list(title = "Year"),
-         yaxis = list(title = "Prevalence of undernourishment (%)"))
+#Political stability and absence of violence/terrorism (index)
+
+Stability_tidy <- clean_data %>% filter(Item.Code == 21032 & Flag == 'X')
+
+Stability_tidy$Stability_flag <- as.factor(ifelse(Stability_tidy$Value > 0 , 1,0))
+
+glimpse(Stability_tidy)
+
+top10 <- Stability_tidy %>%
+  arrange(desc(Value)) %>%
+  filter(Year_From == 2015) %>%
+  slice(1:10)
+
+bottom10 <- Stability_tidy %>%
+  arrange(Value) %>%
+  filter(Year_From == 2015) %>%
+  slice(1:10)
+
+Stability <- rbind(top10,bottom10)
+
+df <- Stability_tidy
+
+# light grey boundaries
+l <- list(color = toRGB("grey"), width = 0.5)
+
+# specify map projection/options
+g <- list(
+  showframe = FALSE,
+  showcoastlines = FALSE,
+  projection = list(type = 'Mercator')
+)
 
 
-p3 <- subplot(a, b, titleX = TRUE, titleY = TRUE) %>%
-  layout(showlegend = FALSE)
-p3
+g <- list(
+  scope = 'world',
+  projection = list(type = 'albers world'),
+  lakecolor = toRGB('white')
+)
+
+
+plot_geo(df, locationmode = 'country names') %>%
+  add_trace(
+    z = ~Value, text = ~Area,
+    locations = ~Area, colors = "Reds"
+  ) %>%
+  colorbar(title = 'Index Value', len = .4, thickness = 20, xpad = 0, ypad = 0, x = 1.05) %>%
+  layout(
+    title = 'Figure 7 : 2016 Global Stability Index<br>(Hover for breakdown)<br>Source:<a href="http://www.fao.org/faostat/en/#data/FS">FAO</a>',
+    geo = g
+  )  
 
 
 ```
+
+Violence and conflict are unevenly distributed across continents, with most concentrated in four regions: the Near East and North Africa, northern sub-Saharan Africa, Central America and Eastern Europe, particularly Ukraine. Many of the most protracted conflicts currently flow across borders and are regional in nature, including in the Horn of Africa, the Great Lakes region of Africa, between Afghanistan, India and Pakistan and from Cameroon, Chad and northern Nigeria across the Sahel.
+
+Conflict is a main driver of population displacement, and displaced populations are among the most vulnerable in the world, experiencing high levels of food insecurity and undernutrition.
+
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center',fig.height=8,fig.width=12}
+
+#Political stability and absence of violence/terrorism (index)
+
+Stability_tidy %>% filter(Area %in% Stability$Area) %>% plot_ly(x = ~Year_From, y = ~Value, 
+                          color = ~Stability_flag, colors = c('red', 'green'),
+                          size = ~Value,text = ~Area) %>%
+  add_markers() %>%
+  layout(xaxis = list(title = "Year"),
+         yaxis = list(title = "Stability Index Score"),
+         title = "Figure 8 : Most & Least Stable Countries in the World over time ",
+         showlegend = FALSE)
+```
+
+
+Figure 9 shows the most stable countries in the world.
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center'}
+hchart(top10, "treemap", hcaes(x = Area, value = Value, color = Value)) %>%
+  hc_colorAxis(stops = color_stops(n = 10, colors = c("#EAFAF1", "#7DCEA0","#0B5345"))) %>%
+  hc_title(text = "Figure 9 : Top 10 most stable countries in the world (2014)") %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_credits(enabled = TRUE, text = "Source : FAO", style = list(fontSize = "10px")) 
+
+bottom10$Value <- abs(bottom10$Value)
+```
+
+Figure 10 shows the least stable countries in the world. These countries also perform poorly in terms of GDP
+and prevalence of undernourishment.
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center'}
+hchart(bottom10, "treemap", hcaes(x = Area, value = Value, color = Value)) %>%
+  hc_colorAxis(stops = color_stops(n = 10, colors = c("#F2D7D5", "#E74C3C", "#641E16"))) %>%
+  hc_title(text = "Figure 10 : Top 10 least stable countries in the world (2014)") %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_credits(enabled = TRUE, text = "Source : FAO", style = list(fontSize = "10px")) 
+
+```
+
+Conflict, especially when compounded by climate change, is therefore a key factor explaining the apparent reversal in the long-term declining trend in global hunger, thereby posing a major challenge to ending hunger and malnutrition by 2030. Hunger and all forms of malnutrition will not end by 2030 unless all the factors that undermine food security and nutrition are addressed.
+
+
+The impact of conflict on food systems can be severe, particularly if the economy and people's livelihoods rely significantly on agriculture. It undermines resilience and can force individuals and households to engage in increasingly destructive and irreversible coping strategies that threaten their future livelihoods, food security and nutrition. Food insecurity itself can become a trigger for violence and instability, particularly in contexts marked by pervasive inequalities and fragile institutions. Therefore, conflict-sensitive and timely interventions aimed at improving food security and nutrition can contribute to sustaining peace.
+
+Assistance to countries affected by conflict should focus on support for investments in building resilience and preparedness.
+
+### 4.5. Malnutrition
+
+The worrisome trend in undernourishment is, however, not yet reflected in nutritional outcomes. Evidence on various forms of malnutrition points to continuous decreases as reflected in global and regional averages.At the same time, various forms of malnutrition are still cause for concern worldwide.
+
+
+##### Stunting among children under the age of five
+
+Stunting still affects almost one in four children under the age of five years, increasing their risk of impaired cognitive ability, weakened performance at school, and dying from infections.
+
+Stunting among children under the age of five has declined consistenly over the last decade from 29.5 percent to
+22.9 percent in 2016 ( Refer Figure 11).
+
+While the prevalence of child stunting seems to be decreasing for both global and regional averages, in 2016 155 million children under five years of age across the world suffered from stunted growth, increasing their risk of suffering impaired cognitive ability, weakened performance at school and work, and dying from infections.
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center'}
+
+#Global rates of stunting among children
+
+stunting <-
+  clean_data %>% filter(Item.Code == 21025,Flag == 'X')
+
+stunting_world <- stunting %>% filter(Area.Code == 5000)
+
+p <- plot_ly(stunting_world, y = ~Value, x = ~Year_From, type = "scatter",mode = "lines+markers",
+             hoverinfo = 'text',
+             text = ~paste('Year: ', Year_From,
+                           '</br></br> Percent: ', Value)) %>%
+  layout(title = "Figure 11 : Global rates of stunting among children . Source : FAO",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "Percentage of children under 5 years of age who are stunted (%)"))
+
+p
+
+
+stunting_top10 <- stunting %>% 
+  filter(Area.Code != 5000,Year_From == 2014) %>%
+    arrange(desc(Value)) %>% 
+      slice(1:10)
+
+
+hchart(stunting_top10, "treemap", hcaes(x = Area, value = Value, color = Value)) %>%
+  hc_colorAxis(stops = color_stops(n = 10, colors = c("#F7DC6F", "#2980B9", "#A93226"))) %>%
+  hc_title(text = "Figure 12 : Top 10 countries with the highest percentage of stunting among children (2014)") %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_credits(enabled = TRUE, text = "Source : FAO", style = list(fontSize = "10px")) 
+
+```
+
+####Wasting among children under the age of five
+
+In 2016 wasting affected 7.7 percent of children under five years of age worldwide. About 17 million children suffered from severe wasting. South Asian countries such as India, Bangladesh, Cambodia and  Nepal along with African countries like Sudan, Egypt, Nigeria and Togo have the highest rates of wasting in the world.
+
+
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center'}
+
+#Global rates of wasting among children
+
+
+wasting <-
+  clean_data %>% filter(Item.Code == 21026,Flag == 'X')
+
+wasting_world <- wasting %>% filter(Area.Code == 5000)
+
+wasting_top10 <- wasting %>% 
+  filter(Area.Code != 5000, Year_From == 2014) %>% 
+     arrange(desc(Value)) %>% slice(1:10)
+
+
+hchart(wasting_top10, "treemap", hcaes(x = Area, value = Value, color = Value)) %>%
+  hc_colorAxis(stops = color_stops(n = 10, colors = c("#EAF2F8", "#5DADE2","#283747"))) %>%
+  hc_title(text = "Figure 13 : Top 10 countries with the highest percentage of wasting among children (2014)") %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_credits(enabled = TRUE, text = "Source : FAO", style = list(fontSize = "10px")) 
+
+
+
+```
+
+
+#### The number of children overweight under the age of five
+
+Childhood overweight is a growing problem in most regions. Worldwide, an estimated 41 million children under five were overweight in 2016, up from 5 percent in 2005 (figure 14)
+
+
+```{r eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE,fig.align='center'}
+
+#Global rates of Obesity
+
+
+overweight <-
+  clean_data %>% filter(Item.Code == 21041,Flag == 'X')
+
+overweight_world <- overweight %>% filter(Area.Code == 5000)
+
+p6 <- plot_ly(overweight_world, y = ~Value, x = ~Year_From, type = "scatter",mode = "lines+markers",
+             hoverinfo = 'text',
+             text = ~paste('Year: ', Year_From,
+                           '</br></br> Percent: ', Value)) %>%
+  layout(title = "Figure 14 : The number of children overweight under the age of five.<br> Source : FAO",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "Percentage of children under 5 years of age who are overweight (%)"))
+
+p6
+
+
+
+```
+
+
+
+
+## 5. Summary
+
+### Towards an integrated understanding of food security and nutrition
+
+There are a total of 790 million people living in hunger in the world today. We observed that the problem of food security is prevalent mostly in the Asian and African countries where the economic development of the countries have not kept pace with the global average. Political stabilty and lack of conflict is also a key factor for the dire situation of hunger. Conflict hinders growth which in turn results in weaker economy and reduction in purchasing power of the people. This results in lack of access to proper nutrition. 
+
+As difficult as it might be to make sense of a situation in which food security is under threat globally but child undernutrition (stunting) is falling and adult obesity is rising, there are a number of possible explanations.
+
+Food security is only one determinant of nutritional outcomes, especially for children. Other factors include: women's educational level; resources allocated to national policies and programmes for maternal, infant and young child nutrition; access to clean water, basic sanitation and quality health services; lifestyle; food environment; and culture.
+
+Particularly in high- and upper-middle income countries, food insecurity and obesity often co-exist - even in the same household. When resources for food become scarce, and people's means to access nutritious food diminish, they often rely on less-healthy, more energy-dense food choices that can lead to overweight and obesity.
+
+A world without hunger and malnutrition by 2030 will be challenging.
+Additionally, food insecurity and poor nutrition during pregnancy and childhood are associated with metabolic adaptations that increase the risk of obesity and associated non-communicable chronic diseases in adulthood.
+
+Last but not least, changes in dietary patterns and food systems have led to increasing consumption of highly processed foods in many countries. Readily available and accessible, these products are often high in fat, sugar and salt and signal a shift away from traditional diets, further explaining the coexistence of multiple forms of malnutrition within the same communities and even households.
+
+More context-specific assessments are needed to identify the links between household food security and nutrition and the causes underlying the apparent divergence in the most recent food security and nutritional trends.
+
+However, overall, these recent estimates are a warning signal that the aim of a world without hunger and malnutrition by 2030 will be challenging, and that accomplishing it will require sustained commitment and efforts to promote the adequate availability of and access to nutritious food.
+
+## 6. Further Analysis
+
+This report will be accompanied by a shinyapp dashdoard which is still in development. The dashboard which provide
+visualizations based on Input Year, Country and Performance Indicator.
+
